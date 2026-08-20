@@ -1,0 +1,1 @@
+ALTER TABLE "rounds" ADD COLUMN "locked_for_updates" boolean DEFAULT false NOT NULL;

@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+/*
+ * Светла тема. Емблемите на клубовете носят целия цвят на страницата, затова
+ * интерфейсът е нарочно неутрален: сиви тонове, един акцент и много бяло.
+ */
+@theme {
+  /* повърхности */
+  --color-canvas: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f8fafc;
+  --color-line: #e6e9ee;
+  --color-line-strong: #cfd5de;
+
+  /* текст */
+  --color-ink: #0e1726;
+  --color-ink-soft: #3d4757;
+  --color-muted: #6b7688;
+  --color-faint: #97a1b1;
+
+  /* акцент — тревисто зелено */
+  --color-brand: #15803d;
+  --color-brand-hover: #116631;
+  --color-brand-soft: #e7f4ec;
+  --color-brand-line: #bfe0cb;
+
+  /* състояния */
+  --color-warn: #a55a09;
+  --color-warn-soft: #fdf3e2;
+  --color-warn-line: #f3ddb4;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdeceb;
+  --color-danger-line: #f6ccc8;
+  --color-info-soft: #eef3fb;
+  --color-info-line: #d5e2f4;
+
+  --radius-card: 14px;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-raised: 0 4px 12px rgb(16 24 40 / 0.06), 0 2px 4px rgb(16 24 40 / 0.04);
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Числата в таблици и резултати трябва да са с еднаква ширина. */
+table,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Полетата за голове: без стрелките — пишат се само една-две цифри. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  appearance: textfield;
+}
+
+/* Видим фокус за клавиатура, но не и при щракане с мишка. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+summary {
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}

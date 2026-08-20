@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: prognozi-db
+    environment:
+      POSTGRES_USER: prognozi
+      POSTGRES_PASSWORD: prognozi
+      POSTGRES_DB: prognozi
+    ports:
+      # 5433, за да не се бие с локален postgres на 5432
+      - '5433:5432'
+    volumes:
+      - prognozi-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U prognozi']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  prognozi-pgdata:

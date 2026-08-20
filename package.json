@@ -1,0 +1,51 @@
+{
+  "name": "prognozi-u17",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "seed:admin": "tsx --env-file=.env scripts/seed-admin.ts",
+    "seed:dev": "tsx --env-file=.env scripts/seed-dev.ts",
+    "seed:predictions": "tsx --env-file=.env scripts/seed-predictions.ts",
+    "import:local": "tsx --env-file=.env scripts/import-local.ts",
+    "import:live": "tsx --env-file=.env scripts/import-live.ts",
+    "fetch:crests": "tsx --env-file=.env scripts/fetch-crests.ts"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "drizzle-orm": "^0.45.2",
+    "next": "^16.3.1",
+    "nodemailer": "^9.0.5",
+    "pg": "^8.16.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.0",
+    "drizzle-kit": "^0.31.10",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11"
+  }
+}
