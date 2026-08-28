@@ -28,11 +28,5 @@ console.log(`  създадени/променени:  ${stats.matchesUpdated}`)
 console.log(`  точкувани прогнози:   ${stats.predictionsScored}`);
 console.log(`  сменени резултати:    ${stats.resultsChanged}`);
 console.log(`  прескочени (заключен кръг): ${stats.matchesSkipped}`);
-if (stats.conflicts.length > 0) {
-  console.log('  КОНФЛИКТИ с ръчно въведени резултати:');
-  for (const c of stats.conflicts) {
-    console.log(`    ${c.homeTeam} - ${c.awayTeam}: ${c.field} ръчно ${c.manual}, източник ${c.source}`);
-  }
-}
 
 process.exit(0);

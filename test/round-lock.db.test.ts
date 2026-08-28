@@ -115,6 +115,75 @@ describe.skipIf(!hasDb)('importSchedule при заключен кръг', async
     expect((await currentMatch())?.ftHome).toBe(2);
   });
 
+  it('презаписва ръчно въведен резултат, когато кръгът не е заключен', async () => {
+    const match = await currentMatch();
+    await db
+      .update(matches)
+      .set({ ftHome: 7, ftAway: 7, ftSource: 'manual' })
+      .where(eq(matches.id, match!.id));
+
+    await importSchedule(schedule({ home: 2, away: 1 }));
+
+    const after = await currentMatch();
+    expect(`${after?.ftHome}:${after?.ftAway}`).toBe('2:1');
+  });
+
+  it('изчиства ръчно въведено полувреме, което източникът не дава', async () => {
+    const match = await currentMatch();
+    await db
+      .update(matches)
+      .set({ ftHome: 2, ftAway: 1, ftSource: 'scrape', htHome: 1, htAway: 0, htSource: 'manual' })
+      .where(eq(matches.id, match!.id));
+
+    // източникът дава краен резултат, но без полувреме
+    await importSchedule(schedule({ home: 2, away: 1 }));
+
+    const rows = await db
+      .select({ htHome: matches.htHome, htSource: matches.htSource })
+      .from(matches)
+      .where(eq(matches.id, match!.id));
+
+    expect(rows[0]?.htHome).toBeNull();
+    expect(rows[0]?.htSource).toBeNull();
+  });
+
+  it('изчиства резултат, който източникът вече не дава', async () => {
+    const match = await currentMatch();
+    await db
+      .update(matches)
+      .set({ ftHome: 3, ftAway: 3, ftSource: 'scrape', status: 'finished' })
+      .where(eq(matches.id, match!.id));
+
+    await importSchedule(schedule(null));
+
+    const rows = await db
+      .select({ ftHome: matches.ftHome, status: matches.status })
+      .from(matches)
+      .where(eq(matches.id, match!.id));
+
+    expect(rows[0]?.ftHome).toBeNull();
+    expect(rows[0]?.status).toBe('scheduled');
+  });
+
+  it('пази ръчно въведеното, когато кръгът е заключен', async () => {
+    const match = await currentMatch();
+    await db
+      .update(matches)
+      .set({ ftHome: 7, ftAway: 7, ftSource: 'manual', htHome: 3, htAway: 3, htSource: 'manual' })
+      .where(eq(matches.id, match!.id));
+
+    await setLocked(true);
+    await importSchedule(schedule({ home: 2, away: 1 }));
+
+    const rows = await db
+      .select({ ftHome: matches.ftHome, htHome: matches.htHome })
+      .from(matches)
+      .where(eq(matches.id, match!.id));
+
+    expect(rows[0]?.ftHome).toBe(7);
+    expect(rows[0]?.htHome).toBe(3);
+  });
+
   it('заключването не се маха от източника', async () => {
     await setLocked(true);
     await importSchedule(schedule(null));

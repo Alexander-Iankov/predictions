@@ -105,7 +105,7 @@ export async function refreshSchedule(options: RefreshOptions): Promise<RefreshR
         matchesSeen: stats.matchesSeen,
         matchesUpdated: stats.matchesUpdated,
         predictionsScored: stats.predictionsScored,
-        error: stats.conflicts.length > 0 ? formatConflicts(stats) : null,
+        error: null,
       })
       .where(eq(scrapeRuns.id, runId));
 
@@ -120,13 +120,6 @@ export async function refreshSchedule(options: RefreshOptions): Promise<RefreshR
 
     return { ok: false, runId, error: message };
   }
-}
-
-function formatConflicts(stats: ImportStats): string {
-  const lines = stats.conflicts.map(
-    (c) => `${c.homeTeam} - ${c.awayTeam}: ${c.field} ръчно ${c.manual}, източник ${c.source}`,
-  );
-  return `Разминаване с ръчно въведени резултати:\n${lines.join('\n')}`;
 }
 
 /** Последните обходи — за админ панела. */

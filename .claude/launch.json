@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "prognozi",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-lc",
+        "export NVM_DIR=\"$HOME/.nvm\"; . \"$NVM_DIR/nvm.sh\"; nvm use 24 >/dev/null; cd /home/alexander.iankov/personal/prognozi && npm run dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

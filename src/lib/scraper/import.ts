@@ -4,16 +4,6 @@ import { matches, rounds, teamAliases, teams } from '@/db/schema';
 import { scoreMatch } from '@/lib/score-match';
 import type { ParsedMatch, ParsedRound } from '@/lib/scraper/parse';
 
-/** Мач, при който източникът противоречи на ръчно въведен резултат. */
-export type ResultConflict = {
-  matchId: number;
-  homeTeam: string;
-  awayTeam: string;
-  field: 'ht' | 'ft';
-  manual: string;
-  source: string;
-};
-
 export type ImportStats = {
   matchesSeen: number;
   matchesUpdated: number;
@@ -22,7 +12,6 @@ export type ImportStats = {
   resultsChanged: number;
   /** мачове, прескочени заради заключен кръг */
   matchesSkipped: number;
-  conflicts: ResultConflict[];
 };
 
 type SeenTeam = { name: string; crestId: number | null; sourceUrl: string | null };
@@ -106,24 +95,21 @@ type ExistingMatch = {
 type MatchUpdate = {
   set: Partial<typeof matches.$inferInsert>;
   resultChanged: boolean;
-  conflicts: Array<Pick<ResultConflict, 'field' | 'manual' | 'source'>>;
 };
-
-const score = (home: number, away: number) => `${home}:${away}`;
 
 /**
  * Какво точно да се промени по вече съществуващ мач — или null, ако нищо.
  *
- * Правила:
- *  - Часът и датата от източника винаги печелят: той е графикът.
- *  - Ръчно въведен резултат не се презаписва от източника; разминаването се
- *    връща като конфликт, за да го види админът.
- *  - Липсващ резултат в източника не изтрива вече записан.
- *  - Ръчно отложен мач не се връща автоматично в "scheduled".
+ * Източникът е истината: час, дата и резултати се привеждат към него, дори това
+ * да означава да се изчисти ръчно въведена стойност, която източникът не дава.
+ * Единствената защита е замразяването на кръга — там мачът изобщо не се стига
+ * дотук.
+ *
+ * Изключение е само статусът "отложен": източникът не изразява отлагане, така
+ * че няма какво да се следва и ръчното решение остава.
  */
 function buildUpdate(existing: ExistingMatch, parsed: ParsedMatch): MatchUpdate | null {
   const set: Partial<typeof matches.$inferInsert> = {};
-  const conflicts: MatchUpdate['conflicts'] = [];
   let resultChanged = false;
 
   if (existing.kickoffAt.getTime() !== parsed.kickoffAt.getTime()) {
@@ -136,49 +122,36 @@ function buildUpdate(existing: ExistingMatch, parsed: ParsedMatch): MatchUpdate 
     set.rawResult = parsed.rawResult;
   }
 
-  if (parsed.ft) {
-    const differs = existing.ftHome !== parsed.ft.home || existing.ftAway !== parsed.ft.away;
-    if (differs && existing.ftSource === 'manual') {
-      conflicts.push({
-        field: 'ft',
-        manual: score(existing.ftHome ?? 0, existing.ftAway ?? 0),
-        source: score(parsed.ft.home, parsed.ft.away),
-      });
-    } else if (differs) {
-      set.ftHome = parsed.ft.home;
-      set.ftAway = parsed.ft.away;
-      set.ftSource = 'scrape';
-      resultChanged = true;
-    }
+  const ftHome = parsed.ft?.home ?? null;
+  const ftAway = parsed.ft?.away ?? null;
+
+  if (existing.ftHome !== ftHome || existing.ftAway !== ftAway) {
+    set.ftHome = ftHome;
+    set.ftAway = ftAway;
+    set.ftSource = parsed.ft ? 'scrape' : null;
+    resultChanged = true;
   }
 
-  if (parsed.ht) {
-    const differs = existing.htHome !== parsed.ht.home || existing.htAway !== parsed.ht.away;
-    if (differs && existing.htSource === 'manual') {
-      conflicts.push({
-        field: 'ht',
-        manual: score(existing.htHome ?? 0, existing.htAway ?? 0),
-        source: score(parsed.ht.home, parsed.ht.away),
-      });
-    } else if (differs) {
-      set.htHome = parsed.ht.home;
-      set.htAway = parsed.ht.away;
-      set.htSource = 'scrape';
-      resultChanged = true;
-    }
+  const htHome = parsed.ht?.home ?? null;
+  const htAway = parsed.ht?.away ?? null;
+
+  if (existing.htHome !== htHome || existing.htAway !== htAway) {
+    set.htHome = htHome;
+    set.htAway = htAway;
+    set.htSource = parsed.ht ? 'scrape' : null;
+    resultChanged = true;
   }
 
   if (existing.status !== 'postponed') {
-    const hasResult = parsed.ft !== null || existing.ftHome !== null;
-    const nextStatus = hasResult ? 'finished' : 'scheduled';
+    const nextStatus = parsed.ft ? 'finished' : 'scheduled';
     if (existing.status !== nextStatus) set.status = nextStatus;
   }
 
-  if (Object.keys(set).length === 0 && conflicts.length === 0) return null;
+  if (Object.keys(set).length === 0) return null;
 
-  if (Object.keys(set).length > 0) set.updatedAt = new Date();
+  set.updatedAt = new Date();
 
-  return { set, resultChanged, conflicts };
+  return { set, resultChanged };
 }
 
 /** Вкарва парснатия график в базата и преизчислява точките, където трябва. */
@@ -224,7 +197,6 @@ export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats
     predictionsScored: 0,
     resultsChanged: 0,
     matchesSkipped: 0,
-    conflicts: [],
   };
 
   const toScore: number[] = [];
@@ -287,19 +259,8 @@ export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats
     const update = buildUpdate(existing, match);
     if (update === null) continue;
 
-    for (const conflict of update.conflicts) {
-      stats.conflicts.push({
-        matchId: existing.id,
-        homeTeam: match.homeTeam,
-        awayTeam: match.awayTeam,
-        ...conflict,
-      });
-    }
-
-    if (Object.keys(update.set).length > 0) {
-      await db.update(matches).set(update.set).where(eq(matches.id, existing.id));
-      stats.matchesUpdated += 1;
-    }
+    await db.update(matches).set(update.set).where(eq(matches.id, existing.id));
+    stats.matchesUpdated += 1;
 
     if (update.resultChanged) {
       if (existing.scoredAt !== null) stats.resultsChanged += 1;

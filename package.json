@@ -16,6 +16,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:bootstrap-sql": "tsx scripts/build-bootstrap-sql.ts",
     "db:studio": "drizzle-kit studio",
     "seed:admin": "tsx --env-file=.env scripts/seed-admin.ts",
     "seed:dev": "tsx --env-file=.env scripts/seed-dev.ts",
