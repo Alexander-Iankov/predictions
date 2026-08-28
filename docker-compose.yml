@@ -1,3 +1,9 @@
+# Името на compose проекта е заковано, защото по подразбиране то идва от името
+# на папката. Проектът се разработваше в папка "prognozi" и локалните данни са
+# във volume-а prognozi_prognozi-pgdata — без този ред `docker compose up` от
+# папка "predictions" би направил нов, празен volume.
+name: prognozi
+
 services:
   db:
     image: postgres:17-alpine

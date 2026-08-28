@@ -181,6 +181,38 @@ describe.skipIf(!hasDb)('savePredictionIfOpen', async () => {
     expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(false);
   });
 
+  it('приема след срока, когато админът е отворил мача', async () => {
+    const matchId = await makeMatch(10);
+    expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(false);
+
+    await db.update(matches).set({ predictionWindow: 'open' }).where(eq(matches.id, matchId));
+
+    expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(true);
+  });
+
+  it('отказва преди срока, когато админът е заключил мача', async () => {
+    const matchId = await makeMatch(600);
+    await db.update(matches).set({ predictionWindow: 'locked' }).where(eq(matches.id, matchId));
+
+    expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(false);
+  });
+
+  it('не отваря изигран мач дори ръчно', async () => {
+    const matchId = await makeMatch(-600, 'finished');
+    await db.update(matches).set({ predictionWindow: 'open' }).where(eq(matches.id, matchId));
+
+    expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(false);
+  });
+
+  it('отваря отложен мач, когато админът каже', async () => {
+    const matchId = await makeMatch(600, 'postponed');
+    expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(false);
+
+    await db.update(matches).set({ predictionWindow: 'open' }).where(eq(matches.id, matchId));
+
+    expect(await savePredictionIfOpen(userId, matchId, prediction)).toBe(true);
+  });
+
   it('отказва за несъществуващ мач', async () => {
     expect(await savePredictionIfOpen(userId, 2_000_000_000, prediction)).toBe(false);
   });

@@ -1,7 +1,8 @@
 import { aliasedTable, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { matches, predictionScores, predictions, rounds, teams, users } from '@/db/schema';
-import { LOCK_MINUTES, type MatchStatus } from '@/lib/lock';
+import { isRevealedSql } from '@/lib/lock-sql';
+import type { MatchStatus } from '@/lib/lock';
 import type { Breakdown } from '@/lib/scoring';
 
 const homeTeams = aliasedTable(teams, 'home_teams');
@@ -156,8 +157,7 @@ export async function getRevealedPredictionsOf(
     .leftJoin(predictionScores, eq(predictionScores.predictionId, predictions.id))
     .where(
       sql`${predictions.userId} = ${userId}
-          and ${matches.status} <> 'postponed'
-          and ${matches.kickoffAt} - make_interval(mins => ${LOCK_MINUTES}) <= now()
+          and ${isRevealedSql()}
           ${roundFilter}`,
     )
     .orderBy(desc(rounds.number), asc(matches.kickoffAt));
@@ -174,8 +174,7 @@ export async function lastRoundWithPredictions(userId: string): Promise<number |
     .innerJoin(rounds, eq(rounds.id, matches.roundId))
     .where(
       sql`${predictions.userId} = ${userId}
-          and ${matches.status} <> 'postponed'
-          and ${matches.kickoffAt} - make_interval(mins => ${LOCK_MINUTES}) <= now()`,
+          and ${isRevealedSql()}`,
     )
     .orderBy(desc(rounds.number))
     .limit(1);

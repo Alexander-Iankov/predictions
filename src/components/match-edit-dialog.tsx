@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { MatchDetailsForm } from '@/components/admin-forms';
+import { MatchDetailsForm, PredictionWindowForm } from '@/components/admin-forms';
 
 export type MatchEditDialogProps = {
   matchId: number;
@@ -16,6 +16,7 @@ export type MatchEditDialogProps = {
   ftHome: number | null;
   ftAway: number | null;
   status: 'scheduled' | 'finished' | 'postponed';
+  predictionWindow: 'auto' | 'open' | 'locked';
 };
 
 /**
@@ -64,7 +65,15 @@ export function MatchEditDialog(props: MatchEditDialogProps) {
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="flex flex-col gap-4 px-5 py-4">
+          <PredictionWindowForm
+            matchId={props.matchId}
+            window={props.predictionWindow}
+            isFinished={props.status === 'finished'}
+          />
+
+          <hr className="border-line" />
+
           <MatchDetailsForm
             matchId={props.matchId}
             kickoffValue={props.kickoffValue}

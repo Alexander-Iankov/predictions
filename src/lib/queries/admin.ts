@@ -2,7 +2,7 @@ import { aliasedTable, asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { auditLog, matches, rounds, teams, users } from '@/db/schema';
 import { predictionCountsByMatch, predictionCountsByUser } from '@/lib/queries/counts';
-import type { MatchStatus } from '@/lib/lock';
+import type { MatchStatus, PredictionWindow } from '@/lib/lock';
 
 /**
  * Заявките тук минават през query builder-а, а не през db.execute() с чист SQL.
@@ -63,6 +63,7 @@ export type AdminMatchRow = {
   kickoffAt: Date;
   timeKnown: boolean;
   status: MatchStatus;
+  predictionWindow: PredictionWindow;
   htHome: number | null;
   htAway: number | null;
   ftHome: number | null;
@@ -84,6 +85,7 @@ const ADMIN_MATCH_FIELDS = {
   kickoffAt: matches.kickoffAt,
   timeKnown: matches.timeKnown,
   status: matches.status,
+  predictionWindow: matches.predictionWindow,
   htHome: matches.htHome,
   htAway: matches.htAway,
   ftHome: matches.ftHome,

@@ -210,6 +210,69 @@ export async function setRoundLockAction(
   };
 }
 
+/**
+ * Ръчно отваряне или заключване на прозореца за прогнози на един мач.
+ *
+ * Полезно, когато мач е преместен в последния момент или прогнозите трябва да
+ * спрат по-рано.
+ *
+ * Отварянето на вече заключен мач автоматично СКРИВА прогнозите обратно (виж
+ * isRevealed в lock.ts) — иначе този, за когото е отворено, би преписал чуждите.
+ */
+export async function setPredictionWindowAction(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await requireAdminForAction();
+
+  const parsed = z
+    .object({
+      matchId: z.coerce.number().int().positive(),
+      window: z.enum(['auto', 'open', 'locked']),
+    })
+    .safeParse({ matchId: formData.get('matchId'), window: formData.get('window') });
+
+  if (!parsed.success) return { error: 'Невалидни данни.' };
+
+  const { matchId, window } = parsed.data;
+
+  const rows = await db
+    .select({ status: matches.status, predictionWindow: matches.predictionWindow })
+    .from(matches)
+    .where(eq(matches.id, matchId))
+    .limit(1);
+
+  const before = rows[0];
+  if (!before) return { error: 'Мачът не е намерен.' };
+
+  if (window === 'open' && before.status === 'finished') {
+    return { error: 'Изигран мач не се отваря — прогнозата би се писала след резултата.' };
+  }
+
+  await db
+    .update(matches)
+    .set({ predictionWindow: window, updatedAt: new Date() })
+    .where(eq(matches.id, matchId));
+
+  await audit({
+    actorUserId: admin.id,
+    action: 'match.prediction_window',
+    entity: `match:${matchId}`,
+    before: { predictionWindow: before.predictionWindow },
+    after: { predictionWindow: window },
+  });
+
+  revalidateAdminPaths();
+
+  const messages = {
+    auto: 'Прозорецът пак следва правилото — затваря 1 час преди началото.',
+    open: 'Прозорецът е отворен ръчно. Прогнозите на всички са скрити, докато е така.',
+    locked: 'Прозорецът е заключен ръчно. Прогнозите станаха видими.',
+  };
+
+  return { message: messages[window] };
+}
+
 /** Празно поле значи „изчисти", а не „нула". */
 const optionalGoals = z
   .string()

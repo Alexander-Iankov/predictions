@@ -1,7 +1,8 @@
 import { aliasedTable, asc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { matches, predictionScores, predictions, rounds, teams, users } from '@/db/schema';
-import { LOCK_MINUTES, isOpen, isRevealed, lockAt, type MatchStatus } from '@/lib/lock';
+import { isOpen, isRevealed, lockAt, type MatchStatus, type PredictionWindow } from '@/lib/lock';
+import { isRevealedSql } from '@/lib/lock-sql';
 import type { Breakdown } from '@/lib/scoring';
 
 const homeTeams = aliasedTable(teams, 'home_teams');
@@ -17,6 +18,7 @@ export type MatchDetail = {
   kickoffAt: Date;
   timeKnown: boolean;
   status: MatchStatus;
+  predictionWindow: PredictionWindow;
   htHome: number | null;
   htAway: number | null;
   ftHome: number | null;
@@ -51,6 +53,7 @@ export async function getMatchDetail(matchId: number): Promise<MatchDetail | nul
       kickoffAt: matches.kickoffAt,
       timeKnown: matches.timeKnown,
       status: matches.status,
+      predictionWindow: matches.predictionWindow,
       htHome: matches.htHome,
       htAway: matches.htAway,
       ftHome: matches.ftHome,
@@ -102,10 +105,9 @@ export async function getRevealedPredictions(matchId: number): Promise<Participa
     .where(
       sql`${predictions.matchId} = ${matchId} and exists (
         select 1
-          from ${matches} m
-         where m.id = ${predictions.matchId}
-           and m.status <> 'postponed'
-           and m.kickoff_at - make_interval(mins => ${LOCK_MINUTES}) <= now()
+          from ${matches}
+         where matches.id = ${predictions.matchId}
+           and ${isRevealedSql()}
       )`,
     )
     .orderBy(sql`${predictionScores.points} desc nulls last`, asc(users.lastName));

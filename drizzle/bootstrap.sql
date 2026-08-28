@@ -176,6 +176,13 @@ ALTER TABLE "teams" ADD COLUMN "crest_id" integer;
 ALTER TABLE "rounds" ADD COLUMN "locked_for_updates" boolean DEFAULT false NOT NULL;
 
 -- ======================================================================
+-- 0003_prediction_window
+-- ======================================================================
+
+CREATE TYPE "public"."prediction_window" AS ENUM('auto', 'open', 'locked');--> statement-breakpoint
+ALTER TABLE "matches" ADD COLUMN "prediction_window" "prediction_window" DEFAULT 'auto' NOT NULL;
+
+-- ======================================================================
 -- Отчитане на миграциите
 -- ======================================================================
 
@@ -189,6 +196,7 @@ CREATE TABLE IF NOT EXISTS "drizzle"."__drizzle_migrations" (
 INSERT INTO "drizzle"."__drizzle_migrations" (hash, created_at) VALUES
   ('533f8f99f65a94519c278973e220f0fcca06871e9d3a175d0fb774bcbef28b33', 1787147779579),
   ('9b89814a4a0d0cff5d28eaab8ecee24b1be92c026da8016afaa1178d7830f108', 1787168703706),
-  ('373df1cc77645e327b38f4ac7e9c2145a79f5a7ca2e16a546acfe40eaa9f2fe4', 1787228479005);
+  ('373df1cc77645e327b38f4ac7e9c2145a79f5a7ca2e16a546acfe40eaa9f2fe4', 1787228479005),
+  ('265ca3edf33d6d864de04f1c042cc0a87866b42fe5d2c706d3c978deb5692188', 1787933653776);
 
 COMMIT;

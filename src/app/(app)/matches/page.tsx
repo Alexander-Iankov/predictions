@@ -128,7 +128,7 @@ function MatchRowView({ match, isAdmin }: { match: MatchRow; isAdmin: boolean })
 
         <StatusBadge match={match} />
 
-        {match.isOpen && match.timeKnown ? (
+        {match.isOpen && match.timeKnown && match.predictionWindow === 'auto' ? (
           <LockCountdown lockAt={match.lockAt.toISOString()} />
         ) : null}
 
@@ -152,6 +152,7 @@ function MatchRowView({ match, isAdmin }: { match: MatchRow; isAdmin: boolean })
               ftHome={match.ftHome}
               ftAway={match.ftAway}
               status={match.status}
+              predictionWindow={match.predictionWindow}
             />
           ) : null}
         </span>
@@ -248,6 +249,11 @@ function StatusBadge({ match }: { match: MatchRow }) {
       <Badge kind="played">изигран</Badge>
     );
   }
+
+  // Ръчното решение се показва честно: участниците виждат защо срокът не е
+  // обичайният, вместо да гадаят.
+  if (match.predictionWindow === 'open') return <Badge kind="open">отворен от админ</Badge>;
+  if (match.predictionWindow === 'locked') return <Badge kind="locked">заключен от админ</Badge>;
 
   if (match.isOpen) return <Badge kind="open">отворен</Badge>;
 

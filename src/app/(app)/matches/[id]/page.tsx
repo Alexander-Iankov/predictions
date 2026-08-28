@@ -55,8 +55,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
               <Badge kind="partial">без полувреме</Badge>
             ) : null}
 
-            {match.isOpen && match.timeKnown ? (
+            {/* Отброяване има смисъл само когато срокът важи. */}
+            {match.isOpen && match.timeKnown && match.predictionWindow === 'auto' ? (
               <LockCountdown lockAt={match.lockAt.toISOString()} />
+            ) : null}
+
+            {match.predictionWindow === 'open' ? (
+              <Badge kind="open">отворен от админ</Badge>
+            ) : null}
+            {match.predictionWindow === 'locked' ? (
+              <Badge kind="locked">заключен от админ</Badge>
             ) : null}
           </div>
 
@@ -98,9 +106,24 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
 
       {!match.isRevealed ? (
         <Banner kind="info">
-          Прогнозите на останалите се виждат от{' '}
-          <span className="tabular-nums">{formatSofiaTime(match.lockAt)}</span> на{' '}
-          {formatSofiaDate(match.lockAt)} — 1 час преди началото. Дотогава всеки вижда само своята.
+          {match.predictionWindow === 'open' ? (
+            <>
+              Админът е отворил прогнозите за този мач. Докато е така, всеки вижда само своята —
+              иначе отворилият би могъл да препише чуждите.
+            </>
+          ) : match.status === 'postponed' ? (
+            <>
+              Мачът е отложен. Прогнозите остават скрити, докато не се насрочи нов час — иначе биха
+              дали предимство, когато се играе.
+            </>
+          ) : (
+            <>
+              Прогнозите на останалите се виждат от{' '}
+              <span className="tabular-nums">{formatSofiaTime(match.lockAt)}</span> на{' '}
+              {formatSofiaDate(match.lockAt)} — 1 час преди началото. Дотогава всеки вижда само
+              своята.
+            </>
+          )}
         </Banner>
       ) : predictions.length === 0 ? (
         <Banner kind="info">Никой не е направил прогноза за този мач.</Banner>

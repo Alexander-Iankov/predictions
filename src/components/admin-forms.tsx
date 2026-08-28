@@ -5,6 +5,7 @@ import {
   createResetLinkAction,
   refreshAction,
   setMatchDetailsAction,
+  setPredictionWindowAction,
   setRoundLockAction,
   setUserRoleAction,
   setUserStatusAction,
@@ -176,6 +177,75 @@ export function RoundLockToggle({
  * нагласят тестови случаи: местиш мач на след час и половина, за да видиш
  * отброяването и заключването, или слагаш резултат, за да провериш точкуването.
  */
+/**
+ * Прозорецът за прогнози на един мач: по правилото, отворен ръчно или заключен
+ * ръчно.
+ *
+ * Бутоните пращат веднага — три взаимно изключващи се състояния не се нуждаят
+ * от отделно „запази".
+ */
+export function PredictionWindowForm({
+  matchId,
+  window,
+  isFinished,
+}: {
+  matchId: number;
+  window: 'auto' | 'open' | 'locked';
+  isFinished: boolean;
+}) {
+  const [state, action, pending] = useActionState(setPredictionWindowAction, initial);
+
+  const options = [
+    { value: 'auto' as const, label: 'по правилото', tone: 'muted' as const },
+    { value: 'open' as const, label: 'отворен', tone: 'ok' as const },
+    { value: 'locked' as const, label: 'заключен', tone: 'err' as const },
+  ];
+
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <input type="hidden" name="matchId" value={matchId} />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+          Прогнози
+        </span>
+
+        {options.map((option) => {
+          const active = option.value === window;
+          // Изигран мач не се отваря — бутонът просто липсва, вместо да отказва.
+          if (option.value === 'open' && isFinished) return null;
+
+          return (
+            <button
+              key={option.value}
+              type="submit"
+              name="window"
+              value={option.value}
+              disabled={pending || active}
+              className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition disabled:cursor-default ${
+                active
+                  ? 'border-brand-line bg-brand-soft text-brand'
+                  : 'border-line text-muted hover:border-line-strong hover:text-ink-soft'
+              }`}
+            >
+              {option.label}
+              {active ? ' ✓' : ''}
+            </button>
+          );
+        })}
+      </div>
+
+      {window === 'open' ? (
+        <p className="text-[12px] text-warn">
+          Отворен ръчно — прогнозите на всички са скрити, докато е така.
+        </p>
+      ) : null}
+
+      <Result state={state} />
+    </form>
+  );
+}
+
 export function MatchDetailsForm({
   matchId,
   kickoffValue,

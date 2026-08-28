@@ -24,6 +24,12 @@ export const userRole = pgEnum('user_role', ['user', 'admin']);
 export const userStatus = pgEnum('user_status', ['pending', 'active', 'blocked']);
 export const matchStatus = pgEnum('match_status', ['scheduled', 'finished', 'postponed']);
 export const resultSource = pgEnum('result_source', ['scrape', 'manual']);
+
+/**
+ * Ръчно решение на админа за прозореца на един мач.
+ * 'auto' значи „по правилото" — отворен до 1 час преди началото.
+ */
+export const predictionWindow = pgEnum('prediction_window', ['auto', 'open', 'locked']);
 export const scrapeTrigger = pgEnum('scrape_trigger', ['cron', 'admin']);
 export const scrapeStatus = pgEnum('scrape_status', ['running', 'success', 'error']);
 
@@ -144,6 +150,12 @@ export const matches = pgTable(
     kickoffAt: timestamp({ withTimezone: true }).notNull(),
     timeKnown: boolean().notNull().default(false),
     status: matchStatus().notNull().default('scheduled'),
+    /**
+     * Ръчно отваряне или заключване на прозореца от админа, независимо от часа.
+     * Стойността се пази само тук — самото правило живее в src/lib/lock.ts и
+     * src/lib/lock-sql.ts, за да не се разминат UI-ът и заявките.
+     */
+    predictionWindow: predictionWindow().notNull().default('auto'),
     htHome: smallint(),
     htAway: smallint(),
     ftHome: smallint(),

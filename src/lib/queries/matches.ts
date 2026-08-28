@@ -2,7 +2,7 @@ import { aliasedTable, asc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { matches, predictionScores, predictions, rounds, teams } from '@/db/schema';
 import { predictionCountsByMatch } from '@/lib/queries/counts';
-import { isOpen, isRevealed, lockAt, type MatchStatus } from '@/lib/lock';
+import { isOpen, isRevealed, lockAt, type MatchStatus, type PredictionWindow } from '@/lib/lock';
 import type { Breakdown } from '@/lib/scoring';
 
 const homeTeams = aliasedTable(teams, 'home_teams');
@@ -19,6 +19,7 @@ export type MatchRow = {
   kickoffAt: Date;
   timeKnown: boolean;
   status: MatchStatus;
+  predictionWindow: PredictionWindow;
   htHome: number | null;
   htAway: number | null;
   ftHome: number | null;
@@ -62,6 +63,7 @@ export async function getMatchesForUser(userId: string): Promise<RoundGroup[]> {
       kickoffAt: matches.kickoffAt,
       timeKnown: matches.timeKnown,
       status: matches.status,
+      predictionWindow: matches.predictionWindow,
       htHome: matches.htHome,
       htAway: matches.htAway,
       ftHome: matches.ftHome,
@@ -100,6 +102,7 @@ export async function getMatchesForUser(userId: string): Promise<RoundGroup[]> {
       kickoffAt: row.kickoffAt,
       timeKnown: row.timeKnown,
       status: row.status,
+      predictionWindow: row.predictionWindow,
       htHome: row.htHome,
       htAway: row.htAway,
       ftHome: row.ftHome,

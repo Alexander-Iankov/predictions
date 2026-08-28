@@ -3,7 +3,11 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { firstUnplayedRound, matchesInRound, type AdminMatchRow } from '@/lib/queries/admin';
 import { getRoundOptions } from '@/lib/queries/leaderboard';
 import { formatSofiaDate, formatSofiaTime, toSofiaInputValue } from '@/lib/time';
-import { MatchDetailsForm, RoundLockToggle } from '@/components/admin-forms';
+import {
+  MatchDetailsForm,
+  PredictionWindowForm,
+  RoundLockToggle,
+} from '@/components/admin-forms';
 import { TeamCrest } from '@/components/team-crest';
 import { Badge, Banner, Card, CardHeader, PageTitle } from '@/components/ui';
 
@@ -89,16 +93,24 @@ export default async function AdminMatchesPage({
 /** Една и съща форма и в двата раздела — една логика, едно поведение. */
 function MatchEditor({ match }: { match: AdminMatchRow }) {
   return (
-    <MatchDetailsForm
-      matchId={match.id}
-      kickoffValue={toSofiaInputValue(match.kickoffAt)}
-      timeKnown={match.timeKnown}
-      htHome={match.htHome}
-      htAway={match.htAway}
-      ftHome={match.ftHome}
-      ftAway={match.ftAway}
-      status={match.status}
-    />
+    <div className="flex flex-col gap-3">
+      <PredictionWindowForm
+        matchId={match.id}
+        window={match.predictionWindow}
+        isFinished={match.status === 'finished'}
+      />
+
+      <MatchDetailsForm
+        matchId={match.id}
+        kickoffValue={toSofiaInputValue(match.kickoffAt)}
+        timeKnown={match.timeKnown}
+        htHome={match.htHome}
+        htAway={match.htAway}
+        ftHome={match.ftHome}
+        ftAway={match.ftAway}
+        status={match.status}
+      />
+    </div>
   );
 }
 
