@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { db } from '@/db';
 import { matches, passwordResets, rounds, users } from '@/db/schema';
 import { requireAdminForAction } from '@/lib/auth/guards';
+import { hashPassword } from '@/lib/auth/password';
 import { destroyUserSessions } from '@/lib/auth/session';
 import { audit } from '@/lib/admin/audit';
 import { refreshSchedule } from '@/lib/refresh';
@@ -130,6 +131,84 @@ export async function createResetLinkAction(
 
   return {
     message: `Линк (валиден ${RESET_HOURS} ч, за еднократна употреба): /reset/${token}`,
+  };
+}
+
+/**
+ * Админът задава нова парола направо, без линк и без имейл.
+ *
+ * Нужно е, когато човекът няма достъп до пощата си или писмата не стигат —
+ * тогава линкът за нова парола е безполезен и някой трябва да я смени вместо
+ * него.
+ *
+ * Иска се два пъти: админът задава парола на чужд профил и няма кой да му каже,
+ * че се е схванал — при печатна грешка човекът остава заключен навън, без да
+ * разбере защо.
+ */
+export async function setUserPasswordAction(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await requireAdminForAction();
+
+  const parsed = z
+    .object({
+      userId: uuid,
+      password: z
+        .string()
+        .min(8, 'Паролата трябва да е поне 8 знака.')
+        .max(200, 'Паролата е твърде дълга.'),
+      repeat: z.string(),
+    })
+    .safeParse({
+      userId: formData.get('userId'),
+      password: formData.get('password'),
+      repeat: formData.get('repeat'),
+    });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Невалидни данни.' };
+  }
+
+  const { userId, password, repeat } = parsed.data;
+
+  if (password !== repeat) return { error: 'Двете полета не съвпадат.' };
+
+  // Собствената парола минава през профила, където се иска и текущата. Оттук
+  // би било по-слабо: открадната админска сесия щеше да заключи и самия админ.
+  if (userId === admin.id) {
+    return { error: 'Своята парола сменяш от „Профил" — там се иска и текущата.' };
+  }
+
+  const rows = await db
+    .select({ email: users.email, firstName: users.firstName, lastName: users.lastName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const target = rows[0];
+  if (!target) return { error: 'Профилът не е намерен.' };
+
+  await db
+    .update(users)
+    .set({ passwordHash: await hashPassword(password) })
+    .where(eq(users.id, userId));
+
+  // Старите сесии падат: ако паролата се сменя, защото някой чужд е влязъл, той
+  // трябва да излети още сега, а не когато изтече cookie-то му.
+  await destroyUserSessions(userId);
+
+  // Паролата не влиза в дневника — записва се само че е сменена и от кого.
+  await audit({
+    actorUserId: admin.id,
+    action: 'user.password_set',
+    entity: `user:${userId}`,
+  });
+
+  revalidatePath('/admin');
+
+  return {
+    message: `Паролата на ${target.firstName} ${target.lastName} (${target.email}) е сменена. Сесиите му са прекратени — трябва да влезе наново.`,
   };
 }
 

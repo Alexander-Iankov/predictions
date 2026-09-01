@@ -4,6 +4,7 @@ import { listUsers, recentAudit } from '@/lib/queries/admin';
 import { lastSuccessfulRun, recentRuns } from '@/lib/refresh';
 import { formatSofiaDateTime } from '@/lib/time';
 import { RefreshButton, ResetLinkForm, UserRoleForm, UserStatusForm } from '@/components/admin-forms';
+import { UserPasswordDialog } from '@/components/user-password-dialog';
 import { Badge, Banner, Card, CardHeader } from '@/components/ui';
 
 export const metadata = { title: 'Админ — Прогнози U-17' };
@@ -88,6 +89,11 @@ export default async function AdminPage() {
                       <div className="flex flex-col gap-2">
                         <UserStatusForm userId={user.id} status={user.status} />
                         <UserRoleForm userId={user.id} role={user.role} />
+                        <UserPasswordDialog
+                          userId={user.id}
+                          name={`${user.firstName} ${user.lastName}`}
+                          email={user.email}
+                        />
                         <ResetLinkForm userId={user.id} />
                       </div>
                     )}
