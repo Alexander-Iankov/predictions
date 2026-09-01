@@ -17,3 +17,4 @@ connection_string
 
 # изтегленото от `vercel env pull` — съдържа боевия connection string
 .env.vercel
+.env*

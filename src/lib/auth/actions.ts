@@ -13,7 +13,7 @@ import {
   destroyCurrentSession,
   destroyUserSessions,
 } from '@/lib/auth/session';
-import { appUrl, sendMail } from '@/lib/email/send';
+import { appUrl, canDeliverMail, sendMail } from '@/lib/email/send';
 
 export type AuthState = {
   error?: string;
@@ -216,6 +216,16 @@ export async function requestPasswordResetAction(
 ): Promise<AuthState> {
   const parsed = email.safeParse(formData.get('email'));
 
+  // Липсващ SMTP важи за всички адреси еднакво, затова може да се каже направо:
+  // това не издава дали профилът съществува, а мълчаливото „изпратено" би
+  // накарало човека да чака писмо, което никога няма да тръгне.
+  if (!canDeliverMail()) {
+    return {
+      error:
+        'Изпращането на имейли не е настроено на сървъра. Обади се на админа, за да ти зададе нова парола.',
+    };
+  }
+
   // И при невалиден имейл отговорът е същият, за да не се различават случаите.
   if (parsed.success) {
     await issueResetLink(parsed.data);
@@ -266,27 +276,34 @@ async function issueResetLink(address: string): Promise<void> {
 
   const link = `${appUrl()}/reset/${token}`;
 
-  await sendMail({
-    to: address,
-    subject: 'Нова парола за Прогнози U-17',
-    text: [
-      `Здравей, ${user.firstName}!`,
-      '',
-      'Някой поиска нова парола за профила ти в Прогнози U-17.',
-      'Отвори този линк, за да зададеш нова:',
-      '',
-      link,
-      '',
-      `Линкът е валиден ${SELF_RESET_MINUTES} минути и може да се използва само веднъж.`,
-      'Ако не си ти, просто изтрий това писмо — паролата ти остава същата.',
-    ].join('\n'),
-    html: [
-      `<p>Здравей, ${escapeHtml(user.firstName)}!</p>`,
-      '<p>Някой поиска нова парола за профила ти в Прогнози U-17.</p>',
-      `<p><a href="${link}">Задай нова парола</a></p>`,
-      `<p style="color:#6b7688;font-size:13px">Линкът е валиден ${SELF_RESET_MINUTES} минути и може да се използва само веднъж. Ако не си ти, просто изтрий това писмо — паролата ти остава същата.</p>`,
-    ].join('\n'),
-  });
+  // Провалено изпращане не се показва на човека: до тук се стига само за
+  // съществуващ профил, така че различен отговор би издавал кои адреси са
+  // регистрирани. Затова причината отива в лога на сървъра.
+  try {
+    await sendMail({
+      to: address,
+      subject: 'Нова парола за Прогнози U-17',
+      text: [
+        `Здравей, ${user.firstName}!`,
+        '',
+        'Някой поиска нова парола за профила ти в Прогнози U-17.',
+        'Отвори този линк, за да зададеш нова:',
+        '',
+        link,
+        '',
+        `Линкът е валиден ${SELF_RESET_MINUTES} минути и може да се използва само веднъж.`,
+        'Ако не си ти, просто изтрий това писмо — паролата ти остава същата.',
+      ].join('\n'),
+      html: [
+        `<p>Здравей, ${escapeHtml(user.firstName)}!</p>`,
+        '<p>Някой поиска нова парола за профила ти в Прогнози U-17.</p>',
+        `<p><a href="${link}">Задай нова парола</a></p>`,
+        `<p style="color:#6b7688;font-size:13px">Линкът е валиден ${SELF_RESET_MINUTES} минути и може да се използва само веднъж. Ако не си ти, просто изтрий това писмо — паролата ти остава същата.</p>`,
+      ].join('\n'),
+    });
+  } catch (cause) {
+    console.error('Писмото за нова парола не тръгна:', cause);
+  }
 }
 
 function escapeHtml(text: string): string {

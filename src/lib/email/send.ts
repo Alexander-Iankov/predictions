@@ -26,6 +26,17 @@ export function isEmailConfigured(): boolean {
   return Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS && SMTP_FROM);
 }
 
+/**
+ * Ще стигне ли писмото донякъде — до пощата или поне до конзолата.
+ *
+ * Единственото място, което знае кога `sendMail` хвърля: в разработка липсващ
+ * SMTP е наред (писмото се изписва), в продукция не е. Повикващите питат това,
+ * вместо да преповтарят условието и да се разминат с него.
+ */
+export function canDeliverMail(): boolean {
+  return isEmailConfigured() || env().NODE_ENV !== 'production';
+}
+
 function transporter(): Transporter {
   if (cached) return cached;
 
@@ -44,7 +55,7 @@ function transporter(): Transporter {
 
 export async function sendMail(mail: Mail): Promise<void> {
   if (!isEmailConfigured()) {
-    if (env().NODE_ENV === 'production') {
+    if (!canDeliverMail()) {
       throw new Error('SMTP не е настроен — писмото не може да се изпрати.');
     }
 
