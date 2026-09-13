@@ -137,10 +137,23 @@ export async function getMatchesForUser(userId: string): Promise<RoundGroup[]> {
 }
 
 /**
- * Кой кръг да е отворен по подразбиране: първият, в който има мач още без
- * резултат. Ако всичко е изиграно — последният.
+ * Кой кръг да е отворен по подразбиране: първият още неизигран, тоест първият, в
+ * който има мач с начален час в бъдещето. Ако всичко е минало — последният.
+ *
+ * Мери се по часа, а не по наличието на резултат. Резултатите се въвеждат ръчно
+ * и понякога със закъснение, така че липсващ резултат не значи „предстои" — иначе
+ * страницата отваря кръг, игран преди седмици, само защото админът не е стигнал
+ * до него.
  */
-export function currentRoundNumber(groups: RoundGroup[]): number {
-  const pending = groups.find((group) => group.matches.some((match) => match.ftHome === null));
-  return pending?.number ?? groups.at(-1)?.number ?? 1;
+export function currentRoundNumber(
+  // Нарочно по-тесен тип от RoundGroup: функцията гледа само часовете, а така
+  // тестът може да я викне без да сглобява цял мач с двайсет полета.
+  groups: { number: number; matches: { kickoffAt: Date }[] }[],
+  now: Date = new Date(),
+): number {
+  const upcoming = groups.find((group) =>
+    group.matches.some((match) => match.kickoffAt.getTime() > now.getTime()),
+  );
+
+  return upcoming?.number ?? groups.at(-1)?.number ?? 1;
 }
