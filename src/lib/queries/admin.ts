@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { auditLog, matches, rounds, teams, users } from '@/db/schema';
 import { predictionCountsByMatch, predictionCountsByUser } from '@/lib/queries/counts';
 import type { MatchStatus, PredictionWindow } from '@/lib/lock';
+import type { UserRole } from '@/lib/visibility';
 
 /**
  * Заявките тук минават през query builder-а, а не през db.execute() с чист SQL.
@@ -20,7 +21,7 @@ export type AdminUserRow = {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'user' | 'admin';
+  role: UserRole;
   status: 'pending' | 'active' | 'blocked';
   createdAt: Date;
   lastLoginAt: Date | null;
@@ -107,7 +108,8 @@ function adminMatchQuery() {
 async function withPredictionCounts(
   rows: Omit<AdminMatchRow, 'predictionCount'>[],
 ): Promise<AdminMatchRow[]> {
-  const counts = await predictionCountsByMatch();
+  // null = без филтър: в админския изглед се броят и служебните профили.
+  const counts = await predictionCountsByMatch(null);
   return rows.map((row) => ({ ...row, predictionCount: counts.get(row.id) ?? 0 }));
 }
 

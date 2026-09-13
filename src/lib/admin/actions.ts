@@ -12,6 +12,7 @@ import { destroyUserSessions } from '@/lib/auth/session';
 import { audit } from '@/lib/admin/audit';
 import { refreshSchedule } from '@/lib/refresh';
 import { scoreMatch } from '@/lib/score-match';
+import { ROLE_LABEL, isCompetitor } from '@/lib/visibility';
 import { formatSofiaDateTime, parseSofiaInputValue } from '@/lib/time';
 
 export type AdminState = {
@@ -70,7 +71,13 @@ export async function setUserStatusAction(
   return { message: `${before[0].email} вече е ${labels[status]}.` };
 }
 
-/** Дава или отнема админски права. */
+/**
+ * Смяна на ролята: участник, тест или админ.
+ *
+ * Ролята решава и правата, и видимостта — виж src/lib/visibility.ts. Смяната
+ * към „тест" или „админ" вади човека от класирането, затова съобщението го
+ * казва изрично, а не само „готово".
+ */
 export async function setUserRoleAction(
   _prev: AdminState,
   formData: FormData,
@@ -78,13 +85,21 @@ export async function setUserRoleAction(
   const admin = await requireAdminForAction();
 
   const parsed = z
-    .object({ userId: uuid, role: z.enum(['user', 'admin']) })
+    .object({ userId: uuid, role: z.enum(['user', 'admin', 'test']) })
     .safeParse({ userId: formData.get('userId'), role: formData.get('role') });
 
   if (!parsed.success) return { error: 'Невалидни данни.' };
   if (parsed.data.userId === admin.id) {
-    return { error: 'Не можеш да си отнемеш собствените права.' };
+    return { error: 'Не можеш да си смениш собствената роля.' };
   }
+
+  const before = await db
+    .select({ role: users.role, firstName: users.firstName, lastName: users.lastName })
+    .from(users)
+    .where(eq(users.id, parsed.data.userId))
+    .limit(1);
+
+  if (!before[0]) return { error: 'Профилът не е намерен.' };
 
   await db.update(users).set({ role: parsed.data.role }).where(eq(users.id, parsed.data.userId));
 
@@ -92,11 +107,20 @@ export async function setUserRoleAction(
     actorUserId: admin.id,
     action: 'user.role',
     entity: `user:${parsed.data.userId}`,
+    before: { role: before[0].role },
     after: { role: parsed.data.role },
   });
 
   revalidatePath('/admin');
-  return { message: 'Правата са сменени.' };
+  revalidatePath('/leaderboard');
+
+  const who = `${before[0].firstName} ${before[0].lastName}`;
+
+  return {
+    message: isCompetitor(parsed.data.role)
+      ? `${who} вече е участник — вижда се от всички и влиза в класирането.`
+      : `${who} вече е „${ROLE_LABEL[parsed.data.role]}" — скрит от останалите и извън класирането.`,
+  };
 }
 
 const RESET_HOURS = 24;

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth/guards';
 import { getLeaderboard, getRoundOptions } from '@/lib/queries/leaderboard';
+import { ROLE_LABEL, isCompetitor } from '@/lib/visibility';
 import { Rank } from '@/components/rank';
 import { Banner, Card, CardHeader, PageTitle } from '@/components/ui';
 
@@ -34,6 +35,17 @@ export default async function LeaderboardPage({
           />
         ))}
       </nav>
+
+      {isCompetitor(user.role) ? null : (
+        <Banner kind="info">
+          Ти не си в тази таблица — служебните профили („{ROLE_LABEL[user.role]}") правят прогнози,
+          но не се състезават. Своите точки виждаш в{' '}
+          <Link href="/profile" className="font-medium underline">
+            профила си
+          </Link>
+          .
+        </Banner>
+      )}
 
       {!anyPoints ? (
         <Banner kind="info">

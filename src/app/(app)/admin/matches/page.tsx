@@ -82,9 +82,9 @@ export default async function AdminMatchesPage({
       </Card>
 
       <Banner kind="info">
-        Промените тук са ръчни и влизат в дневника на админ панела. Обновяването от източника
-        привежда час, дата и резултати към неговите данни — единственото, което ги пази, е
-        замразяването на кръга.
+        Промените тук са ръчни и влизат в дневника на админ панела. Резултатите се въвеждат само
+        оттук — обновяването от източника никога не ги пипа. То търси нови дати и часове, и то само
+        за мачовете без резултат; замразяването на кръга спира и това.
       </Banner>
     </div>
   );
@@ -99,6 +99,18 @@ function MatchEditor({ match }: { match: AdminMatchRow }) {
         window={match.predictionWindow}
         isFinished={match.status === 'finished'}
       />
+
+      {/*
+        Резултатите вече не влизат сами, затова източникът служи за подсказка:
+        иначе админът трябва да отваря чуждия сайт за всеки мач поотделно.
+      */}
+      {match.rawResult && match.rawResult !== '-' ? (
+        <p className="text-[12px] text-muted">
+          Източникът показва:{' '}
+          <span className="font-semibold tabular-nums text-ink">{match.rawResult}</span>
+          {match.ftHome === null ? ' — още не е въведен тук.' : ''}
+        </p>
+      ) : null}
 
       <MatchDetailsForm
         matchId={match.id}

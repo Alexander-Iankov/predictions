@@ -1,6 +1,7 @@
 import { asc, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { rounds } from '@/db/schema';
+import { isCompetitorSql } from '@/lib/visibility-sql';
 
 export type LeaderboardRow = {
   userId: string;
@@ -29,6 +30,9 @@ export type LeaderboardRow = {
  *
  * Филтърът по кръг е в условието на join-а, а не в WHERE: иначе участник без
  * прогнози в този кръг би изчезнал от таблицата, вместо да излезе с 0 точки.
+ *
+ * Служебните профили (админ и тест) отпадат — те правят прогнози, но не се
+ * състезават.
  */
 export async function getLeaderboard(roundNumber?: number): Promise<LeaderboardRow[]> {
   const roundFilter =
@@ -66,6 +70,7 @@ export async function getLeaderboard(roundNumber?: number): Promise<LeaderboardR
       left join matches m on m.id = p.match_id
       left join prediction_scores ps on ps.prediction_id = p.id
      where u.status = 'active'
+       and ${isCompetitorSql('u')}
      group by u.id, u.first_name, u.last_name
      order by points desc, "exactFt" desc, "exactHt" desc, u.last_name asc
   `);

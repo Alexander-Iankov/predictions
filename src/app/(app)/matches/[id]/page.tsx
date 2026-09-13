@@ -30,7 +30,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const match = await getMatchDetail(matchId);
   if (!match) notFound();
 
-  const predictions = await getRevealedPredictions(matchId);
+  const predictions = await getRevealedPredictions(matchId, user.id);
   const played = match.ftHome !== null && match.ftAway !== null;
 
   // Заявката вече ги връща подредени по точки — тук само се раздават местата.

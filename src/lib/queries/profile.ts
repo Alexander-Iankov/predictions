@@ -4,6 +4,7 @@ import { matches, predictionScores, predictions, rounds, teams, users } from '@/
 import { isRevealedSql } from '@/lib/lock-sql';
 import type { MatchStatus } from '@/lib/lock';
 import type { Breakdown } from '@/lib/scoring';
+import type { UserRole } from '@/lib/visibility';
 
 const homeTeams = aliasedTable(teams, 'home_teams');
 const awayTeams = aliasedTable(teams, 'away_teams');
@@ -13,7 +14,7 @@ export type ProfileHeader = {
   firstName: string;
   lastName: string;
   email: string;
-  role: 'user' | 'admin';
+  role: UserRole;
   status: 'pending' | 'active' | 'blocked';
   createdAt: Date;
   lastLoginAt: Date | null;

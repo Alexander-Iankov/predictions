@@ -20,7 +20,12 @@ import type { Breakdown } from '@/lib/scoring';
  * заради `casing: 'snake_case'` в drizzle.config.ts и в src/db/index.ts.
  */
 
-export const userRole = pgEnum('user_role', ['user', 'admin']);
+/**
+ * „test" е профил, който може всичко като редовния участник, но не се вижда от
+ * останалите и не влиза в класирането. Кои роли се състезават се решава на едно
+ * място — src/lib/visibility.ts.
+ */
+export const userRole = pgEnum('user_role', ['user', 'admin', 'test']);
 export const userStatus = pgEnum('user_status', ['pending', 'active', 'blocked']);
 export const matchStatus = pgEnum('match_status', ['scheduled', 'finished', 'postponed']);
 export const resultSource = pgEnum('result_source', ['scrape', 'manual']);

@@ -4,6 +4,7 @@ import { and, eq, gt, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import { sessions, users } from '@/db/schema';
 import { SESSION_COOKIE } from '@/lib/auth/cookie';
+import type { UserRole } from '@/lib/visibility';
 
 export { SESSION_COOKIE };
 
@@ -14,7 +15,7 @@ export type SessionUser = {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'user' | 'admin';
+  role: UserRole;
   status: 'pending' | 'active' | 'blocked';
 };
 

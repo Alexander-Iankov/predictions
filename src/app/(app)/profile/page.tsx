@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { requireUser } from '@/lib/auth/guards';
 import { getProfile, getProfileStats } from '@/lib/queries/profile';
 import { formatSofiaDateTime } from '@/lib/time';
+import { ROLE_LABEL, isCompetitor } from '@/lib/visibility';
 import { ChangePasswordForm } from './change-password-form';
-import { Badge, Card, CardHeader, PageTitle, Stat } from '@/components/ui';
+import { Badge, Banner, Card, CardHeader, PageTitle, Stat } from '@/components/ui';
 
 export const metadata = { title: 'Профил — Прогнози U-17' };
 
@@ -21,9 +22,19 @@ export default async function ProfilePage() {
           href={`/participants/${user.id}`}
           className="text-[13px] font-medium text-brand hover:underline"
         >
-          виж как те виждат другите →
+          {/* За скрит профил „както те виждат другите" би било лъжа — тях
+              страницата ги посреща с 404. */}
+          {isCompetitor(profile.role) ? 'виж как те виждат другите →' : 'публичната ти страница →'}
         </Link>
       </div>
+
+      {isCompetitor(profile.role) ? null : (
+        <Banner kind="info">
+          Профилът ти е служебен („{ROLE_LABEL[profile.role]}"). Можеш да правиш прогнози както
+          всички, но не се появяваш в класирането и останалите не те виждат — нито в прогнозите по
+          мачове, нито като профил.
+        </Banner>
+      )}
 
       <Card>
         <CardHeader title="Данни" subtitle="Тези данни са лични — виждаш ги само ти." />
@@ -33,7 +44,11 @@ export default async function ProfilePage() {
           </Row>
           <Row label="Имейл">{profile.email}</Row>
           <Row label="Роля">
-            {profile.role === 'admin' ? <Badge kind="partial">админ</Badge> : 'участник'}
+            {isCompetitor(profile.role) ? (
+              'участник'
+            ) : (
+              <Badge kind="partial">{ROLE_LABEL[profile.role]}</Badge>
+            )}
           </Row>
           <Row label="Статус">
             {profile.status === 'active' ? <Badge kind="open">активен</Badge> : profile.status}
@@ -46,7 +61,14 @@ export default async function ProfilePage() {
       </Card>
 
       <Card>
-        <CardHeader title="Резултати" subtitle="Същите числа вижда и всеки друг участник." />
+        <CardHeader
+          title="Резултати"
+          subtitle={
+            isCompetitor(profile.role)
+              ? 'Същите числа вижда и всеки друг участник.'
+              : 'Тези числа ги виждаш само ти — профилът е извън класирането.'
+          }
+        />
         <div className="flex flex-wrap gap-2 px-5 pb-5 pt-4">
           <Stat value={stats.points} label="точки" />
           <Stat value={stats.played} label="изиграни мача" />

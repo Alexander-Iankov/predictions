@@ -9,6 +9,7 @@ import {
   type ProfilePrediction,
 } from '@/lib/queries/profile';
 import { MAX_POINTS, derive2h } from '@/lib/scoring';
+import { isVisibleTo } from '@/lib/visibility';
 import { formatSofiaDate, formatSofiaTime } from '@/lib/time';
 import { PointsBreakdown } from '@/components/points-breakdown';
 import { ScoreGrid } from '@/components/score-grid';
@@ -32,6 +33,11 @@ export default async function ParticipantPage({ params }: { params: Promise<{ id
 
   const profile = await getProfile(id);
   if (!profile || profile.status !== 'active') notFound();
+
+  // Служебен профил не се показва на никого освен на самия него. notFound(), а
+  // не съобщение „скрит профил" — иначе страницата пак би издавала, че такъв
+  // човек съществува.
+  if (!isVisibleTo(profile, viewer.id)) notFound();
 
   const [stats, lastRound] = await Promise.all([
     getProfileStats(profile.id),

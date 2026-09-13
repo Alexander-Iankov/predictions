@@ -49,7 +49,7 @@ export type RoundGroup = {
  * проверява дали мачът е заключен.
  */
 export async function getMatchesForUser(userId: string): Promise<RoundGroup[]> {
-  const counts = await predictionCountsByMatch();
+  const counts = await predictionCountsByMatch(userId);
 
   const rows = await db
     .select({

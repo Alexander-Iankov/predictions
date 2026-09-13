@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { listUsers, recentAudit } from '@/lib/queries/admin';
 import { lastSuccessfulRun, recentRuns } from '@/lib/refresh';
 import { formatSofiaDateTime } from '@/lib/time';
+import { ROLE_LABEL, isCompetitor } from '@/lib/visibility';
 import { RefreshButton, ResetLinkForm, UserRoleForm, UserStatusForm } from '@/components/admin-forms';
 import { UserPasswordDialog } from '@/components/user-password-dialog';
 import { Badge, Banner, Card, CardHeader } from '@/components/ui';
@@ -33,7 +34,7 @@ export default async function AdminPage() {
       <Card>
         <CardHeader
           title="Обновяване от източника"
-          subtitle="Кронът минава веднъж дневно към 07:00 българско време. Тук се дърпа веднага."
+          subtitle="Проверява за нови дати и часове само на неизиграните мачове. Резултатите се въвеждат ръчно и оттук не се пипат. Кронът минава веднъж дневно към 07:00 българско време."
         />
         <div className="p-5">
           <RefreshButton
@@ -68,9 +69,9 @@ export default async function AdminPage() {
                 <tr key={user.id} className="border-t border-line align-top">
                   <td className="py-2 pr-3">
                     {user.firstName} {user.lastName}
-                    {user.role === 'admin' ? (
-                      <span className="ml-1 text-xs text-warn">админ</span>
-                    ) : null}
+                    {isCompetitor(user.role) ? null : (
+                      <span className="ml-1 text-xs text-warn">{ROLE_LABEL[user.role]}</span>
+                    )}
                   </td>
                   <td className="py-2 pr-3 text-muted">{user.email}</td>
                   <td className="py-2 pr-3">

@@ -11,6 +11,7 @@ import {
   setUserStatusAction,
   type AdminState,
 } from '@/lib/admin/actions';
+import { ROLE_LABEL, type UserRole } from '@/lib/visibility';
 import { Banner } from '@/components/ui';
 
 const initial: AdminState = {};
@@ -82,23 +83,50 @@ export function UserStatusForm({
   );
 }
 
-export function UserRoleForm({ userId, role }: { userId: string; role: 'user' | 'admin' }) {
+/**
+ * Ролята определя и правата, и видимостта: „участник" се вижда от всички и
+ * влиза в класирането, „тест" и „админ" — не. Затова трите са едно поле, а не
+ * отметка отделно от превключвател.
+ */
+export function UserRoleForm({ userId, role }: { userId: string; role: UserRole }) {
   const [state, action, pending] = useActionState(setUserRoleAction, initial);
 
+  const options: { value: UserRole; hint: string }[] = [
+    { value: 'user', hint: 'вижда се и се класира' },
+    { value: 'test', hint: 'скрит, извън класирането' },
+    { value: 'admin', hint: 'скрит, с админски права' },
+  ];
+
   return (
-    <form action={action} className="flex items-center gap-2">
+    <form action={action} className="flex flex-col gap-1.5">
       <input type="hidden" name="userId" value={userId} />
-      <SmallButton
-        name="role"
-        value={role === 'admin' ? 'user' : 'admin'}
-        pending={pending}
-        tone="muted"
-      >
-        {role === 'admin' ? 'отнеми админ' : 'направи админ'}
-      </SmallButton>
-      <div className="w-full">
-        <Result state={state} />
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {options.map((option) => {
+          const active = option.value === role;
+
+          return (
+            <button
+              key={option.value}
+              type="submit"
+              name="role"
+              value={option.value}
+              disabled={pending || active}
+              title={option.hint}
+              className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition disabled:cursor-default ${
+                active
+                  ? 'border-brand-line bg-brand-soft text-brand'
+                  : 'border-line text-muted hover:border-line-strong hover:text-ink-soft'
+              }`}
+            >
+              {ROLE_LABEL[option.value]}
+              {active ? ' ✓' : ''}
+            </button>
+          );
+        })}
       </div>
+
+      <Result state={state} />
     </form>
   );
 }
@@ -161,7 +189,7 @@ export function RoundLockToggle({
         />
         <span>
           Замрази <span className="font-medium text-ink">{roundLabel}</span> — обновяването от
-          източника да не пипа мачовете в него
+          източника да не пипа датите и часовете на неизиграните мачове в него
         </span>
       </label>
 
@@ -342,11 +370,11 @@ export function MatchDetailsForm({
       <p className="text-[12px] text-muted">
         Празен краен резултат изчиства и него, и полувремето. Резултат без полувреме е нормален —
         точкуват се само критериите за краен резултат.{' '}
-        <strong className="font-semibold text-warn">
-          Обновяването от източника ще върне всичко тук към неговите данни
+        <strong className="font-semibold text-ink-soft">
+          Обновяването от източника не пипа резултатите
         </strong>{' '}
-        — включително ще изчисти полувреме, което той не дава. За да остане въведеното, замрази
-        кръга.
+        — въведеното тук остава. То сменя датата и часа само докато мачът няма резултат; щом
+        въведеш такъв, мачът замръзва и за програмата.
       </p>
 
       <Result state={state} />

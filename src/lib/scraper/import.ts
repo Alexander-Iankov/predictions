@@ -8,10 +8,10 @@ export type ImportStats = {
   matchesSeen: number;
   matchesUpdated: number;
   predictionsScored: number;
-  /** мачове, при които вече точкуван резултат се е променил */
-  resultsChanged: number;
   /** мачове, прескочени заради заключен кръг */
   matchesSkipped: number;
+  /** мачове, прескочени, защото вече са изиграни */
+  matchesPlayed: number;
 };
 
 type SeenTeam = { name: string; crestId: number | null; sourceUrl: string | null };
@@ -82,35 +82,40 @@ type ExistingMatch = {
   kickoffAt: Date;
   timeKnown: boolean;
   status: 'scheduled' | 'finished' | 'postponed';
-  htHome: number | null;
-  htAway: number | null;
   ftHome: number | null;
-  ftAway: number | null;
-  htSource: 'scrape' | 'manual' | null;
-  ftSource: 'scrape' | 'manual' | null;
   rawResult: string | null;
-  scoredAt: Date | null;
 };
 
-type MatchUpdate = {
-  set: Partial<typeof matches.$inferInsert>;
-  resultChanged: boolean;
-};
+/**
+ * Изигран ли е мачът според админа.
+ *
+ * Двете условия са заедно нарочно: статусът е изричното решение, а въведеният
+ * краен резултат е същото решение, изразено чрез данните. Ако се разчита само
+ * на едното, мач с резултат, но забравен статус, пак би си сменял датата.
+ */
+function isPlayed(match: ExistingMatch): boolean {
+  return match.status === 'finished' || match.ftHome !== null;
+}
 
 /**
  * Какво точно да се промени по вече съществуващ мач — или null, ако нищо.
  *
- * Източникът е истината: час, дата и резултати се привеждат към него, дори това
- * да означава да се изчисти ръчно въведена стойност, която източникът не дава.
- * Единствената защита е замразяването на кръга — там мачът изобщо не се стига
- * дотук.
+ * Обновяването търси само нови дати и часове, и само за **неизиграните**
+ * мачове. Резултатите — полувреме, краен резултат и статусът "изигран" — се
+ * въвеждат единствено ръчно от админа и източникът никога не ги презаписва.
  *
- * Изключение е само статусът "отложен": източникът не изразява отлагане, така
- * че няма какво да се следва и ръчното решение остава.
+ * Изиграният мач не се пипа изобщо, защото датата му вече е история. Източникът
+ * пренарежда страницата си и понякога подава друг час за минал мач; местенето би
+ * подменило кога всъщност се е играло, а заедно с това и кога прогнозите са се
+ * заключили.
  */
-function buildUpdate(existing: ExistingMatch, parsed: ParsedMatch): MatchUpdate | null {
+function buildUpdate(
+  existing: ExistingMatch,
+  parsed: ParsedMatch,
+): Partial<typeof matches.$inferInsert> | null {
+  if (isPlayed(existing)) return null;
+
   const set: Partial<typeof matches.$inferInsert> = {};
-  let resultChanged = false;
 
   if (existing.kickoffAt.getTime() !== parsed.kickoffAt.getTime()) {
     set.kickoffAt = parsed.kickoffAt;
@@ -118,43 +123,26 @@ function buildUpdate(existing: ExistingMatch, parsed: ParsedMatch): MatchUpdate 
   if (existing.timeKnown !== parsed.timeKnown) {
     set.timeKnown = parsed.timeKnown;
   }
+
+  // Суровият текст от страницата е само подсказка за админа какво да въведе —
+  // не участва в точкуването. Затова се опреснява, докато мачът чака въвеждане.
   if ((existing.rawResult ?? '') !== parsed.rawResult) {
     set.rawResult = parsed.rawResult;
-  }
-
-  const ftHome = parsed.ft?.home ?? null;
-  const ftAway = parsed.ft?.away ?? null;
-
-  if (existing.ftHome !== ftHome || existing.ftAway !== ftAway) {
-    set.ftHome = ftHome;
-    set.ftAway = ftAway;
-    set.ftSource = parsed.ft ? 'scrape' : null;
-    resultChanged = true;
-  }
-
-  const htHome = parsed.ht?.home ?? null;
-  const htAway = parsed.ht?.away ?? null;
-
-  if (existing.htHome !== htHome || existing.htAway !== htAway) {
-    set.htHome = htHome;
-    set.htAway = htAway;
-    set.htSource = parsed.ht ? 'scrape' : null;
-    resultChanged = true;
-  }
-
-  if (existing.status !== 'postponed') {
-    const nextStatus = parsed.ft ? 'finished' : 'scheduled';
-    if (existing.status !== nextStatus) set.status = nextStatus;
   }
 
   if (Object.keys(set).length === 0) return null;
 
   set.updatedAt = new Date();
 
-  return { set, resultChanged };
+  return set;
 }
 
-/** Вкарва парснатия график в базата и преизчислява точките, където трябва. */
+/**
+ * Вкарва програмата от източника в базата.
+ *
+ * Резултати не се внасят — нито за нови мачове, нито за съществуващи. Точкува
+ * се само това, което админът е въвел ръчно и което още не е точкувано.
+ */
 export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats> {
   const allMatches = parsed.flatMap((round) => round.matches);
 
@@ -175,14 +163,8 @@ export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats
       kickoffAt: matches.kickoffAt,
       timeKnown: matches.timeKnown,
       status: matches.status,
-      htHome: matches.htHome,
-      htAway: matches.htAway,
       ftHome: matches.ftHome,
-      ftAway: matches.ftAway,
-      htSource: matches.htSource,
-      ftSource: matches.ftSource,
       rawResult: matches.rawResult,
-      scoredAt: matches.scoredAt,
     })
     .from(matches);
 
@@ -195,11 +177,9 @@ export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats
     matchesSeen: allMatches.length,
     matchesUpdated: 0,
     predictionsScored: 0,
-    resultsChanged: 0,
     matchesSkipped: 0,
+    matchesPlayed: 0,
   };
-
-  const toScore: number[] = [];
 
   for (const match of allMatches) {
     const round = roundMap.get(match.roundNumber);
@@ -232,13 +212,10 @@ export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats
           awayTeamId,
           kickoffAt: match.kickoffAt,
           timeKnown: match.timeKnown,
-          status: match.ft ? 'finished' : 'scheduled',
-          htHome: match.ht?.home ?? null,
-          htAway: match.ht?.away ?? null,
-          ftHome: match.ft?.home ?? null,
-          ftAway: match.ft?.away ?? null,
-          htSource: match.ht ? 'scrape' : null,
-          ftSource: match.ft ? 'scrape' : null,
+          // Нов мач влиза само като програма, дори източникът вече да показва
+          // резултат: правилото „резултатите са ръчни" не бива да има изключения,
+          // иначе никой няма да помни кое откъде е дошло.
+          status: 'scheduled',
           rawResult: match.rawResult,
         })
         // Ако друго обновяване е вкарало същия мач между четенето и записа,
@@ -248,35 +225,33 @@ export async function importSchedule(parsed: ParsedRound[]): Promise<ImportStats
         })
         .returning({ id: matches.id });
 
-      const id = inserted[0]?.id;
-      if (id === undefined) continue;
+      if (inserted[0] === undefined) continue;
 
       stats.matchesUpdated += 1;
-      if (match.ft) toScore.push(id);
+      continue;
+    }
+
+    if (isPlayed(existing)) {
+      stats.matchesPlayed += 1;
       continue;
     }
 
     const update = buildUpdate(existing, match);
     if (update === null) continue;
 
-    await db.update(matches).set(update.set).where(eq(matches.id, existing.id));
+    await db.update(matches).set(update).where(eq(matches.id, existing.id));
     stats.matchesUpdated += 1;
-
-    if (update.resultChanged) {
-      if (existing.scoredAt !== null) stats.resultsChanged += 1;
-      toScore.push(existing.id);
-    }
   }
 
-  // Мачове с резултат, които още не са точкувани — например защото прогнозите
-  // са направени след като резултатът е влязъл.
+  // Мачове с ръчно въведен резултат, които още не са точкувани — например
+  // защото прогноза е дошла, след като резултатът е бил въведен.
   const unscored = await db
     .select({ id: matches.id })
     .from(matches)
     .where(sql`${matches.ftHome} is not null and ${matches.scoredAt} is null`);
 
-  for (const matchId of new Set([...toScore, ...unscored.map((m) => m.id)])) {
-    stats.predictionsScored += await scoreMatch(matchId);
+  for (const match of unscored) {
+    stats.predictionsScored += await scoreMatch(match.id);
   }
 
   return stats;

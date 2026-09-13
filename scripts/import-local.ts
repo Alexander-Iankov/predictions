@@ -26,7 +26,7 @@ console.log('Импортът завърши:');
 console.log(`  видени мачове:        ${stats.matchesSeen}`);
 console.log(`  създадени/променени:  ${stats.matchesUpdated}`);
 console.log(`  точкувани прогнози:   ${stats.predictionsScored}`);
-console.log(`  сменени резултати:    ${stats.resultsChanged}`);
 console.log(`  прескочени (заключен кръг): ${stats.matchesSkipped}`);
+console.log(`  прескочени (изиграни):      ${stats.matchesPlayed}`);
 
 process.exit(0);

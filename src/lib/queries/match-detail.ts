@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { matches, predictionScores, predictions, rounds, teams, users } from '@/db/schema';
 import { isOpen, isRevealed, lockAt, type MatchStatus, type PredictionWindow } from '@/lib/lock';
 import { isRevealedSql } from '@/lib/lock-sql';
+import { isVisibleToSql } from '@/lib/visibility-sql';
 import type { Breakdown } from '@/lib/scoring';
 
 const homeTeams = aliasedTable(teams, 'home_teams');
@@ -84,8 +85,14 @@ export async function getMatchDetail(matchId: number): Promise<MatchDetail | nul
  * Условието за заключване е ВЪТРЕ в заявката, не в страницата. Преди
  * заключването резултатът е празен списък — няма как чужда прогноза да излезе
  * от сървъра, независимо какво прави UI-ът или кой вика функцията.
+ *
+ * `viewerId` е нужен, защото служебните профили (админ и тест) не се виждат от
+ * другите, но всеки трябва да вижда своята прогноза в общия списък.
  */
-export async function getRevealedPredictions(matchId: number): Promise<ParticipantPrediction[]> {
+export async function getRevealedPredictions(
+  matchId: number,
+  viewerId: string,
+): Promise<ParticipantPrediction[]> {
   return db
     .select({
       userId: users.id,
@@ -103,12 +110,14 @@ export async function getRevealedPredictions(matchId: number): Promise<Participa
     .innerJoin(users, eq(users.id, predictions.userId))
     .leftJoin(predictionScores, eq(predictionScores.predictionId, predictions.id))
     .where(
-      sql`${predictions.matchId} = ${matchId} and exists (
-        select 1
-          from ${matches}
-         where matches.id = ${predictions.matchId}
-           and ${isRevealedSql()}
-      )`,
+      sql`${predictions.matchId} = ${matchId}
+          and ${isVisibleToSql(viewerId)}
+          and exists (
+            select 1
+              from ${matches}
+             where matches.id = ${predictions.matchId}
+               and ${isRevealedSql()}
+          )`,
     )
     .orderBy(sql`${predictionScores.points} desc nulls last`, asc(users.lastName));
 }

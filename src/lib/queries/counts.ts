@@ -1,6 +1,7 @@
-import { count, eq } from 'drizzle-orm';
+import { and, count, eq, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/db';
-import { predictions } from '@/db/schema';
+import { predictions, users } from '@/db/schema';
+import { isVisibleToSql } from '@/lib/visibility-sql';
 
 /**
  * Броячи на прогнози, взети с отделна групираща заявка.
@@ -12,13 +13,26 @@ import { predictions } from '@/db/schema';
  * една отделна заявка е и по-ясна, и по-безопасна.
  */
 
-export async function predictionCountsByMatch(): Promise<Map<number, number>> {
+/**
+ * `viewerId` = null значи „брой всички", за админския изглед. Иначе скритите
+ * профили отпадат, за да не обещава броячът редове, които списъкът няма да
+ * покаже.
+ */
+export async function predictionCountsByMatch(
+  viewerId: string | null,
+): Promise<Map<number, number>> {
   const rows = await db
     .select({ matchId: predictions.matchId, total: count() })
     .from(predictions)
+    .innerJoin(users, eq(users.id, predictions.userId))
+    .where(visibleOnly(viewerId))
     .groupBy(predictions.matchId);
 
   return new Map(rows.map((row) => [row.matchId, row.total]));
+}
+
+function visibleOnly(viewerId: string | null): SQL | undefined {
+  return viewerId === null ? undefined : isVisibleToSql(viewerId);
 }
 
 export async function predictionCountsByUser(): Promise<Map<string, number>> {
@@ -31,11 +45,15 @@ export async function predictionCountsByUser(): Promise<Map<string, number>> {
 }
 
 /** Броят прогнози за един мач — за страницата на конкретен мач. */
-export async function predictionCountForMatch(matchId: number): Promise<number> {
+export async function predictionCountForMatch(
+  matchId: number,
+  viewerId: string | null,
+): Promise<number> {
   const rows = await db
     .select({ total: count() })
     .from(predictions)
-    .where(eq(predictions.matchId, matchId));
+    .innerJoin(users, eq(users.id, predictions.userId))
+    .where(and(eq(predictions.matchId, matchId), visibleOnly(viewerId)));
 
   return rows[0]?.total ?? 0;
 }

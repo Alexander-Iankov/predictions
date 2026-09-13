@@ -19,8 +19,8 @@ if (result.ok) {
   console.log(`  видени мачове:        ${result.stats.matchesSeen}`);
   console.log(`  създадени/променени:  ${result.stats.matchesUpdated}`);
   console.log(`  точкувани прогнози:   ${result.stats.predictionsScored}`);
-  console.log(`  сменени резултати:    ${result.stats.resultsChanged}`);
   console.log(`  прескочени (заключен кръг): ${result.stats.matchesSkipped}`);
+  console.log(`  прескочени (изиграни):      ${result.stats.matchesPlayed}`);
   process.exit(0);
 }
 
